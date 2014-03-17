@@ -7,16 +7,24 @@ from collections import namedtuple
 
 from kcbo.Result import Result
 
-def t_test(df, groups=None, groupcol='group', valuecol='value', **kwargs):
+
+def t_test(df, groups=None, groupcol='group', valuecol='value', pooling='default', samples=40000, burns=10000, thin=1, ** kwargs):
     """Bayesian implementation of standard t-Test.
-    
+
        See http://blog.henryhhammond.com/bayesian-t-test/ for details.
 
        Options:
        - pooling:
         - 'all': uses pooled data from all data in df
         - 'pairs': uses pooled data from only pairs being compared
-        - default (unspecified): uses pooled data of all data in groups in df
+        - 'default': uses pooled data of all data in groups in df
+
+        If you have 4 groups in your dataframe, A, B, C, and D, the behavior is:
+
+        - all: A,B,C,D in pooled
+        - paired: for A vs B pool only A and B
+        - default: for comparing A,B,C pooled data will be A,B,C for every group
+      - sampler options:
        - burns: <int> for start point for MCMC
        - samples: <int> for number of samples to take
        - thin: <int> rate at which sampler iterates through samples
@@ -27,7 +35,7 @@ def t_test(df, groups=None, groupcol='group', valuecol='value', **kwargs):
     Data = namedtuple(
         'Data', ['mus_1', 'mus_2', 'sigmas_1', 'sigmas_2', 'nu', 'diff_mu', 'diff_sigma', 'effect', 'normality'])
     Statistics = namedtuple(
-        'Statistics', ['differece_means', 'difference_variances', 'effect', 'p_value'])
+        'Statistics', ['difference_means', 'difference_variances', 'effect', 'p_value'])
     if not groups:
         groups = list(df[groupcol].unique())
 
@@ -35,40 +43,26 @@ def t_test(df, groups=None, groupcol='group', valuecol='value', **kwargs):
     group_map = lambda x: x[groupcol] in groups
 
     # Setup Pooling behavior
-    if 'pooling' in kwargs:
-        if kwargs['pooling'] == 'all':
-            pooled = df[valuecol]
-        else:
-            pooled = df[df.apply(group_map, axis=1)][valuecol]
-    else:
+    if pooling == 'all':
+        pooled = df[valuecol]
+    elif pooling == 'default':
         pooled = df[df.apply(group_map, axis=1)][valuecol]
 
     # Prepare MCMCs
     mcmcs = {}
     data = {}
     statistics = {}
-    # Prepare samplers
-    samples = 40000
-    burns = 10000
-    thin = 1
-    if 'burns' in kwargs:
-        burns = kwargs['burns']
-    if 'samples' in kwargs:
-        samples = kwargs['samples']
-    if 'thin' in kwargs:
-        thin = kwargs['thin']
 
     # Build and sample our models
-    for x in combinations(groups, 2):
+    for group1, group2 in combinations(groups, 2):
         # unpack groups
-        group1, group2 = x
 
         # Get group data
         g1 = df[df[groupcol] == group1][valuecol]
         g2 = df[df[groupcol] == group2][valuecol]
 
         # Get pooled Data
-        if 'pooling' in kwargs and kwargs['pooling'] == 'pairs':
+        if pooling == 'pairs':
             pooled = pd.DataFrame.concat([g1, g2])
 
         # Setup our priors
@@ -95,7 +89,7 @@ def t_test(df, groups=None, groupcol='group', valuecol='value', **kwargs):
         # TODO: make thin a variable specified by user
         mcmc.sample(iter=samples, burn=burns, thin=thin)
 
-        mcmcs[x] = mcmc
+        mcmcs[(group1, group2)] = mcmc
 
         # Get distributions from MCMC
         mus_1 = mcmc.trace('mu_1')[:]
@@ -114,9 +108,9 @@ def t_test(df, groups=None, groupcol='group', valuecol='value', **kwargs):
         pval = (effect > 0).mean()
 
         # Export to objects
-        data[x] = Data(mus_1, mus_2, sigmas_1, sigmas_2, nu,
+        data[(group1, group2)] = Data(mus_1, mus_2, sigmas_1, sigmas_2, nu,
                        diff_mu, diff_sigma, effect, normality)
-        statistics[x] = Statistics(
+        statistics[(group1, group2)] = Statistics(
             (diff_mu > 0).mean(), (diff_sigma > 0).mean(), (effect > 0).mean(), pval)
 
     # TODO: Finish Results object and allow export to that format
