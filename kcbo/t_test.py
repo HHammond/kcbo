@@ -14,6 +14,7 @@ def t_test(df, groups=None, groupcol='group', valuecol='value', pooling='default
        See http://blog.henryhhammond.com/bayesian-t-test/ for details.
 
        Options:
+       - groups: Group labels used in the experiment. Should be passed as a list or a tuple. When unspecified the test will determine groups from taking all unique labels in the test data.
        - pooling:
         - 'all': uses pooled data from all data in df
         - 'pairs': uses pooled data from only pairs being compared
@@ -55,7 +56,6 @@ def t_test(df, groups=None, groupcol='group', valuecol='value', pooling='default
 
     # Build and sample our models
     for group1, group2 in combinations(groups, 2):
-        # unpack groups
 
         # Get group data
         g1 = df[df[groupcol] == group1][valuecol]
