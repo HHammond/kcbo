@@ -24,7 +24,7 @@ setup(
     url="https://github.com/HHammond/kcbo",
     include_package_data=True,
     packages=find_packages(),
-    long_description=read('README.txt'),
+    long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "License :: OSI Approved :: MIT License",
