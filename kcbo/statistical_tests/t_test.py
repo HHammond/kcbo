@@ -1,9 +1,10 @@
 from kcbo.statistical_tests.utils import StatisticalTest, statistic
+from kcbo.utils import output_templates
 
 import pymc as pm
 import numpy as np
 import pandas as pd
-
+from tabulate import tabulate
 from itertools import combinations
 
 
@@ -23,10 +24,12 @@ class TTest(StatisticalTest):
         self.mcmcs = {}
         self.mcmc_vars = {}
 
-        self.groups = groups
+        # self.groups = groups
+        self.groups = []
         self.keys = list(combinations(groups, 2))
 
-        self.df = dataframe # TODO: may have broken things with locals... fragile move
+        # TODO: may have broken things with locals... fragile move
+        self.df = dataframe
         self.groupcol = groupcol
         self.valuecol = valuecol
         self.pooling = pooling
@@ -41,6 +44,9 @@ class TTest(StatisticalTest):
             return [self.compute_statistic(statistic=x) for x in self.statistics]
 
     def run_model(self, key, df=None, groups=None, groupcol=None, valuecol=None, pooling=None, samples=None, burns=None, thin=None, ** kwargs):
+
+        if key not in self.keys:
+            return None
 
         if df is None:
             df = self.df
@@ -59,7 +65,7 @@ class TTest(StatisticalTest):
         if thin is None:
             thin = self.thin
 
-        group_map = lambda x: x[groupcol] in groups
+        group_map = lambda x: x[groupcol] in (groups or key)
 
         if pooling == 'all':
             pooled = df[valuecol]
@@ -100,24 +106,14 @@ class TTest(StatisticalTest):
 
         # Generate our MCMC object and run sampler
         mcmc = pm.MCMC(model)
-        mcmc.sample(iter=samples, burn=burns, thin=thin)
+        mcmc.sample(iter=samples, burn=burns, thin=thin, progress_bar=False)
 
         self.mcmcs[key] = mcmc
         self.complete_key(key)
 
         return mcmc
 
-    def summary(self, key=None):
-        data = self.compute_statistic(key=self.keys)
-
-        # param_CI_estimates = {}
-        # for key in keys:
-        #     param_CI_estimates[key] = {'median': self.compute_interval()
-
-
-        return data
-
-    @statistic('diff_means')
+    @statistic('diff_means', pairwise=True, is_distribution=True, is_estimate=True)
     def get_diff_means(self, key):
         """Compute difference of means from sampler
 
@@ -127,7 +123,7 @@ class TTest(StatisticalTest):
         mus_2 = self.mcmcs[key].trace('mu_2')[:]
         return mus_2 - mus_1
 
-    @statistic('diff_sdev')
+    @statistic('diff_sdev', pairwise=True, is_distribution=True, is_estimate=True)
     def get_diff_sdev(self, key):
         """Compute difference of standard deviations from sampler
 
@@ -137,7 +133,7 @@ class TTest(StatisticalTest):
         sigmas_2 = self.mcmcs[key].trace('sigma_2')[:]
         return sigmas_2 ** 0.5 - sigmas_1 ** 0.5
 
-    @statistic('effect_size')
+    @statistic('effect_size', pairwise=True, is_distribution=True, is_estimate=True)
     def get_effect_size(self, key):
         """Compute effect size from sampler
 
@@ -149,15 +145,55 @@ class TTest(StatisticalTest):
         sigmas_2 = self.mcmcs[key].trace('sigma_2')[:]
         return (mus_2 - mus_1) / (np.sqrt((sigmas_2 + sigmas_1) / 2.0))
 
-    @statistic('normality')
+    @statistic('normality', pairwise=True, is_distribution=True, is_estimate=True)
     def get_normality(self, key):
         """Return normality parameter"""
         return np.log(self.mcmcs[key].trace('nu')[:])
 
-    @statistic('p_value')
+    @statistic('p_value', pairwise=True, is_distribution=False, is_estimate=True)
     def get_p_value(self, key):
         """"Return P(Key2 > Key1 | Observed Data)"""
         return (self.get_diff_means(key) > 0).mean()
+
+    def summary(self, key=None):
+        data = self.compute_statistic(key=self.keys)
+
+        return self.generate_text_description(data), data
+
+    def generate_text_description(self, summary_data):
+
+        summary_tables = []
+        for (parameter, title) in (
+            ('diff_means', 'Difference of Means'),
+            ('diff_sdev', 'Difference of S.Dev'),
+            ('effect_size', 'Effect Size'),
+        ):
+            group_summary_header = [
+                'Hypothesis', title, 'P.Value', '95% CI Lower', '95% CI Upper']
+            group_summary_table_data = [
+                [
+                    "{} < {}".format(*pair),
+                    summary_data[pair]['estimate {}'.format(parameter)],
+                    (summary_data[pair]['diff_means'] > 0).mean(),
+                    summary_data[pair]['95_CI {}'.format(parameter)][0],
+                    summary_data[pair]['95_CI {}'.format(parameter)][1],
+                ]
+                for pair in self.keys]
+
+            group_summary_table = tabulate(
+                group_summary_table_data, group_summary_header, tablefmt="pipe")
+            summary_tables.append(group_summary_table)
+
+        summary_tables = "\n\n".join(summary_tables)
+
+        description = output_templates['groups estimate'].format(
+            title=self.TYPE,
+            groups_header="",
+            groups_string="",
+            groups_summary=summary_tables,
+        )
+
+        return description
 
 
 def t_test(df, groups=None, groupcol='group', valuecol='value', pooling='default', samples=40000, burns=10000, thin=1, *args, **kwargs):

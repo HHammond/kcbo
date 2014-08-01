@@ -1,6 +1,7 @@
 import functools
 import operator
 
+
 def listify(f):
     """Convert generator output to a list"""
 
@@ -33,21 +34,39 @@ def dictify(f):
 
     return dictify_helper
 
+output_templates = {
+    'groups estimate': """
+            {title:^80}
 
-def draw_four_col_table(columns, rows, width=80):
-    header = "{0:<20}{1:>20}{2:>20}{3:>20}".format(*columns)
-    body = []
+            {groups_header} {groups_string}
 
-    for row in rows:
-        out = "{0:<20}{1:>20}{2:>20}{3:>20}".format(*row)
-        body.append(out)
+            {groups_summary}
+            """,
+    'groups comparison': """
+            {title:^80}
 
-    return "{header}\n{divider}\n{body}".format(
-        header=header,
-        divider="=" * width,
-        body="\n".join(body)
-    )
+            {groups_header} {groups_string}
 
+            {groups_summary}
+            """,
+
+    'groups with comparison': """
+            {title:^80}
+
+            {groups_header} {groups_string}
+
+            Estimates:
+            
+            {groups_summary}
+
+            Comparisions:
+
+            {comparison_summary}
+        """
+}
+
+output_templates = {k: "\n".join([line.lstrip() for line in v[1:].split('\n')])
+                    for (k, v) in output_templates.items()}
 
 def dict_merge(*args):
     d = {}

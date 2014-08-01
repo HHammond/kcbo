@@ -1,11 +1,13 @@
-from __future__ import unicode_literals
 
 from kcbo.statistical_tests.utils import StatisticalTest, statistic
-from kcbo.utils import draw_four_col_table, dict_merge
-from itertools import combinations
-import pandas as pd
+from kcbo.utils import output_templates
+
 import numpy as np
-import re
+from tabulate import tabulate
+from itertools import combinations
+
+
+
 
 
 class LognormalMedianComparison(StatisticalTest):
@@ -13,7 +15,6 @@ class LognormalMedianComparison(StatisticalTest):
     TYPE = 'Lognormal Median Comparison Test'
 
     def __init__(self, *args, **kwargs):
-        self.delay_statistic = kwargs.get('delay_statistics', True)
         super(type(self), self).__init__(*args, **kwargs)
 
     def initialize_test(self, dataframe, groups=None, groupcol='group', valuecol='value', samples=100000, **kwargs):
@@ -51,14 +52,9 @@ class LognormalMedianComparison(StatisticalTest):
 
         mc_samples = self.samples
 
+        tau = 1. / pooled_variance
         for group in groups:
             g = self.df[self.df[self.groupcol] == group][self.valuecol]
-
-            # estimate for this group
-            mu = compute_mu(g.mean(), g.var())
-            var = compute_var(g.mean(), g.var())
-            tau = 1. / pooled_variance
-
             n = g.shape[0]
 
             # MC Simulation to generate distribution
@@ -74,56 +70,71 @@ class LognormalMedianComparison(StatisticalTest):
             self.median_distributions[group] = median_data
             self.mean_distributions[group] = mean_data
 
+    @statistic('median', individual=True, is_distribution=True, is_estimate=True)
     def group_median_distribution(self, group):
         return self.median_distributions.get(group, [])
 
+    @statistic('mu', individual=True, is_distribution=True, is_estimate=True)
     def group_mean_distribution(self, group):
         return self.mean_distributions.get(group, [])
 
-    @statistic('diff_medians')
+    @statistic('diff_medians', is_distribution=True, pairwise=True, is_estimate=True)
     def diff_medians(self, groups):
         group1, group2 = groups
         return self.median_distributions[group2] - self.median_distributions[group1]
 
-    @statistic('p_diff_medians')
+    @statistic('p_diff_medians', pairwise=True, is_estimate=True)
     def p_diff_medians(self, groups):
         return (self.diff_medians(groups) > 0).mean()
 
     def summary(self, *args, **kwargs):
-        data = self.compute_statistic(key=self.keys)
+        summary_data = self.compute_statistic(
+            keys=list(self.keys).extend(self.groups))
+        return self.generate_text_description(summary_data), summary_data
 
-        credible_intervals = {}
+    def generate_text_description(self, summary_data):
+        group_summary_header = [
+            'Group', 'Median', '95% CI Lower', '95% CI Upper', 'Mu', '95% CI Lower', '95% CI Upper']
+        group_summary_table_data = [
+            [
+                group,
+                summary_data[group]['estimate median'],
+                summary_data[group]['95_CI median'][0],
+                summary_data[group]['95_CI median'][1],
+                summary_data[group]['estimate mu'],
+                summary_data[group]['95_CI mu'][0],
+                summary_data[group]['95_CI mu'][1]
+            ]
+            for group in self.groups]
 
-        for pair in self.keys:
-            credible_intervals[pair] = {}
-            credible_intervals[pair]['95_CI diff_medians'] = self.compute_interval(
-                data[pair]['diff_medians'], 0.05)
+        group_summary_table = tabulate(
+            group_summary_table_data, group_summary_header, tablefmt="pipe")
 
-            data[pair] = {'p_diff_medians': data[pair]['p_diff_medians']}
+        comparisons_header = [
+            "Hypothesis", "Difference of Medians", "P.Value", "95% CI Lower", "95% CI Upper"]
+        comparisons_data = [
+            [
+                "{} < {}".format(*pair),
+                self.diff_medians(pair).mean(),
+                summary_data[pair]['p_diff_medians'],
+                summary_data[pair]['95_CI diff_medians'][0],
+                summary_data[pair]['95_CI diff_medians'][1],
+            ] for pair in self.keys
+        ]
 
-        for group in self.groups:
-            credible_intervals[group] = {}
-            credible_intervals[group]['95_CI median'] = self.compute_interval(
-                self.group_median_distribution(group), 0.05)
-            credible_intervals[group]['95_CI mu'] = self.compute_interval(
-                self.group_mean_distribution(group), 0.05)
+        comparison_summary_table = tabulate(
+            comparisons_data, comparisons_header, tablefmt="pipe")
 
-            data[group] = {}
-            data[group]['median'] = self.group_median_distribution(
-                group).mean()
-            data[group]['mu'] = self.group_mean_distribution(group).mean()
+        description = output_templates['groups with comparison'].format(
+            title=self.TYPE,
+            groups_header="Groups:",
+            groups_string=", ".join(self.groups),
+            groups_summary=group_summary_table,
+            comparison_summary=comparison_summary_table,
+        )
 
-        summary_data = {}
-        for k, v in dict_merge(data, credible_intervals).items():
-            if type(v) is list:
-                d = v[0]
-                for w in v:
-                    d.update(w)
-                v = d
+        return description
 
-            summary_data[k] = v
-
-        return summary_data
 
 def lognormal_comparison_test(dataframe, groups=None, groupcol='group', valuecol='value', **kwargs):
     results = LognormalMedianComparison(
