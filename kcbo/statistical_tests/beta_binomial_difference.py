@@ -106,4 +106,30 @@ class BetaBinomialTest(StatisticalTest):
         return description
 
 def conversion_test(dataframe, groups=None, groupcol='group', successcol='conversions', totalcol='total', samples=100000, **kwargs):
+    """Beta-Binomial model Conversion t_test.py
+
+    Given a dataframe of the form:
+
+    |Group|Successes|Total|
+    |-----|---------|-----|
+    |A    |    <int>|<int>|
+    |B    |    <int>|<int>|
+    ...
+
+    Compute estimates of the true proportion of successes and compare proportions from different groups.
+
+
+    Inputs:
+    dataframe -- Pandas dataframe of form above
+    groups -- (optional) list of groups to look at. Excluded looks at all groups
+    groupcol -- string for indexing dataframe column for groups
+    successcol -- string for indexing dataframe column for number of succcesses
+    totalcol -- string for indexing dataframe column for group totals
+
+    Returns:
+    (description, raw_data)
+    description: table describing output data
+    raw_data: dictionary of output data
+
+    """
     return BetaBinomialTest(dataframe, groups, groupcol, successcol, totalcol, samples, **kwargs).summary()

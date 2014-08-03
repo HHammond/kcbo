@@ -137,6 +137,32 @@ class LognormalMedianComparison(StatisticalTest):
 
 
 def lognormal_comparison_test(dataframe, groups=None, groupcol='group', valuecol='value', **kwargs):
+    """Lognormal Median Comparison
+
+    Given a dataframe of the form:
+
+    |Group  |Observed Value|
+    |-------|--------------|
+    |<group>|       <float>|
+    ...
+
+    Compute estimates of the difference of medians between groups.
+
+    Note: This test assumes that input comes from distributions with the same variance.
+
+    Inputs:
+    dataframe -- Pandas dataframe of form above
+    groups -- (optional) list of groups to look at. Excluded looks at all groups
+    groupcol -- string for indexing dataframe column for groups
+    valuecol -- string for indexing dataframe column for values of observations
+
+    Returns:
+    (description, raw_data)
+    description: table describing output data
+    raw_data: dictionary of output data
+
+    """
+
     results = LognormalMedianComparison(
         dataframe, groups=None, groupcol='group', valuecol='value', **kwargs)
     return results.summary()

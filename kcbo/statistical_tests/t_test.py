@@ -37,6 +37,7 @@ class TTest(StatisticalTest):
         self.burns = burns
         self.thin = thin
 
+        self.progress_bar = kwargs.get('progress_bar',False)
         if self.delay_statistic != True:
             local_vars = locals()
             del local_vars['self']
@@ -106,7 +107,7 @@ class TTest(StatisticalTest):
 
         # Generate our MCMC object and run sampler
         mcmc = pm.MCMC(model)
-        mcmc.sample(iter=samples, burn=burns, thin=thin, progress_bar=False)
+        mcmc.sample(iter=samples, burn=burns, thin=thin, progress_bar=self.progress_bar)
 
         self.mcmcs[key] = mcmc
         self.complete_key(key)
@@ -197,6 +198,36 @@ class TTest(StatisticalTest):
 
 
 def t_test(df, groups=None, groupcol='group', valuecol='value', pooling='default', samples=40000, burns=10000, thin=1, *args, **kwargs):
+    """Bayesian t-Test
+
+    Given a dataframe of the form:
+
+    |Group  |Observed Value|
+    |-------|--------------|
+    |<group>|       <float>|
+    ...
+
+    Perform pairwise t-Tests on groups
+
+    Inputs:
+    dataframe -- Pandas dataframe of form above
+    groups -- (optional) list of groups to look at. Excluded looks at all groups
+    groupcol -- string for indexing dataframe column for groups
+    valuecol -- string for indexing dataframe column for values of observations
+    pooling -- strategy for using pooled data in test. 
+               * 'default' -- uses pairwise pooled data
+               * 'all' -- uses pooled data from all groups
+    samples -- number of samples to use in MCMC
+    burns -- number of burns to use in MCMC
+    thin -- thinning to use in MCMC
+    progress_bar -- boolean, show progress bar of sampler (PyMC progress bar)
+
+    Returns:
+    (description, raw_data)
+    description: table describing output data
+    raw_data: dictionary of output data
+
+    """
     test = TTest(df, groups, groupcol, valuecol,
                  pooling, samples, burns, thin, *args, **kwargs)
     return test.summary()
