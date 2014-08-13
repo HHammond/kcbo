@@ -11,7 +11,7 @@ class BetaBinomialTest(StatisticalTest):
     def __init__(self, *args, **kwargs):
         super(type(self), self).__init__(*args, **kwargs)
 
-    def initialize_test(self, dataframe, groups=None, groupcol='group', successcol='successes', totalcol='total', samples=100000, alpha_ = 1., beta_ = 1., **kwargs):
+    def initialize_test(self, dataframe, groups=None, groupcol='group', successcol='successes', totalcol='total', samples=100000, alpha = 1., beta = 1., **kwargs):
         df = dataframe
         self.df = df
 
@@ -22,8 +22,8 @@ class BetaBinomialTest(StatisticalTest):
         self.successcol = successcol
         self.totalcol = totalcol
         self.samples = samples
-        self.alpha_ = alpha_
-        self.beta_ = beta_
+        self.alpha = alpha
+        self.beta = beta
 
         self.keys = list(combinations(groups, 2))
         self.distributions = {}
@@ -39,7 +39,7 @@ class BetaBinomialTest(StatisticalTest):
             successes = group_data[self.successcol]
 
             mc_data = beta.rvs(
-                successes + self.alpha_, total - successes + self.beta_, size=samples)
+                successes + self.alpha, total - successes + self.beta, size=samples)
             self.distributions[group] = mc_data
 
     @statistic('difference', is_distribution=True, is_estimate=True, pairwise=True)
@@ -107,7 +107,7 @@ class BetaBinomialTest(StatisticalTest):
 
         return description
 
-def conversion_test(dataframe, groups=None, groupcol='group', successcol='conversions', totalcol='total', samples=100000, alpha_ = 1., beta_ = 1., **kwargs):
+def conversion_test(dataframe, groups=None, groupcol='group', successcol='conversions', totalcol='total', samples=100000, alpha = 1., beta = 1., **kwargs):
     """Beta-Binomial model Conversion t_test.py
 
     Given a dataframe of the form:
@@ -134,4 +134,4 @@ def conversion_test(dataframe, groups=None, groupcol='group', successcol='conver
     raw_data: dictionary of output data
 
     """
-    return BetaBinomialTest(dataframe, groups, groupcol, successcol, totalcol, samples, alpha_, beta_, **kwargs).summary()
+    return BetaBinomialTest(dataframe, groups, groupcol, successcol, totalcol, samples, alpha, beta, **kwargs).summary()
