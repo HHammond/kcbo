@@ -1,4 +1,4 @@
 from statistical_tests.t_test import t_test
 from statistical_tests.lognormal_comparison_test import lognormal_comparison_test
 from statistical_tests.beta_binomial_difference import conversion_test
-from statistical_tests.weighted_dirichlet_test import weighted_dirichlet_comparison_test
+from statistical_tests.weighted_dirichlet_test import weighted_dirichlet_comparison_test, dirichlet_multinomial_proportions

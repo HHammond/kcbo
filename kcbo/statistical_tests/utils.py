@@ -1,5 +1,6 @@
 from kcbo.utils import listify, dictify
 import numpy as np
+import pandas as pd
 from collections import Iterable
 from itertools import chain
 from tabulate import tabulate
@@ -11,7 +12,7 @@ class statistic(object):
     This allows the statistical test to run compute_statistic on a method.
     """
 
-    def __init__(self, statistic_name=None, is_distribution=False, is_estimate=False, pairwise=False, individual=False, **kwargs):
+    def __init__(self, statistic_name=None, is_distribution=False, is_estimate=False, pairwise=False, individual=False, ignore_intervals=False, **kwargs):
         self.statistic_name = statistic_name
 
         self.is_distribution = is_distribution
@@ -19,6 +20,9 @@ class statistic(object):
 
         self.pairwise = pairwise
         self.individual = individual
+
+        self.ignore_intervals = ignore_intervals
+
         self.kwargs = kwargs
 
     def __call__(self, f):
@@ -31,9 +35,10 @@ class statistic(object):
         f.pairwise = self.pairwise
         f.individual = self.individual
 
+        f.ignore_intervals = self.ignore_intervals
+
         if self.is_estimate:
             f.estimate_function = self.kwargs.get('estimate_function', np.mean)
-
         if self.pairwise:
             f.hypotheses = self.kwargs.get('hypothesis_string', self.base_pairwise_hypothesis)
         elif self.individual:
@@ -106,11 +111,18 @@ class StatisticalTest(object):
     @staticmethod
     def compute_interval(distribution, alpha):
         alpha_lower, alpha_upper = (alpha / 2.0, 1 - alpha / 2.0)
-        return np.percentile(distribution, 100 * alpha_lower), np.percentile(distribution, 100 * alpha_upper)
+        lower_func = lambda dist: np.percentile(dist, 100 * alpha_lower)
+        upper_func = lambda dist: np.percentile(dist, 100 * alpha_upper)
+
+        if type(distribution) is pd.DataFrame:
+            frame = pd.concat([distribution.apply(lower_func, axis=0), distribution.apply(upper_func, axis=0)], axis=1)
+            return frame
+
+        return lower_func(distribution), upper_func(distribution)
 
     def compute_statistic(self, keys=None, **kwargs):
         if keys is None:
-            keys = list(chain(self.keys, self.groups)) or []
+            keys = list(chain((self.keys or []), self.groups)) or []
         
         data = {}
         for key in keys:
@@ -119,14 +131,14 @@ class StatisticalTest(object):
             if not self.complete_key(key):
                 self.run_model(key)
             
-            if isinstance(key, Iterable) and not type(key) is str and key in self.keys:
+            if isinstance(key, Iterable) and not (type(key) is str or type(key) is unicode) and key in self.keys:
                 applicable_statistics = {k:v for (k,v) in self.statistics.items() if v.pairwise}
             else:
                 applicable_statistics = {k:v for (k,v) in self.statistics.items() if v.individual}
             
             for name, statistic in applicable_statistics.items():
                 key_data[name] = statistic(key)
-                if statistic.is_distribution:
+                if statistic.is_distribution and not statistic.ignore_intervals:
                     key_data["95_CI {}".format(name)] = self.compute_interval(key_data[name],0.05)
                 if statistic.is_estimate and statistic.is_distribution:
                     key_data["estimate {}".format(name)] = statistic.estimate_function(key_data[name])
