@@ -2,6 +2,7 @@ from kcbo.utils import listify, dictify
 import numpy as np
 from collections import Iterable
 from itertools import chain
+from tabulate import tabulate
 
 class statistic(object):
 
@@ -12,6 +13,7 @@ class statistic(object):
 
     def __init__(self, statistic_name=None, is_distribution=False, is_estimate=False, pairwise=False, individual=False, **kwargs):
         self.statistic_name = statistic_name
+
         self.is_distribution = is_distribution
         self.is_estimate = is_estimate
 
@@ -30,8 +32,22 @@ class statistic(object):
         f.individual = self.individual
 
         if self.is_estimate:
-            f.estimate_function = self.kwargs.get('estimate_function',np.mean)
+            f.estimate_function = self.kwargs.get('estimate_function', np.mean)
+
+        if self.pairwise:
+            f.hypotheses = self.kwargs.get('hypothesis_string', self.base_pairwise_hypothesis)
+        elif self.individual:
+            f.hypotheses = self.kwargs.get('hypothesis_string', self.base_individual_hypothesis)
+        
         return f
+
+    @staticmethod
+    def base_pairwise_hypothesis(key):
+        return "{} < {}".format(*key)
+
+    @staticmethod
+    def base_individual_hypothesis(group):
+        return "{} > 0".format(group)
 
 
 class StatisticalTest(object):
@@ -111,9 +127,9 @@ class StatisticalTest(object):
             for name, statistic in applicable_statistics.items():
                 key_data[name] = statistic(key)
                 if statistic.is_distribution:
-                    key_data["95_CI %s"%name] = self.compute_interval(key_data[name],0.05)
+                    key_data["95_CI {}".format(name)] = self.compute_interval(key_data[name],0.05)
                 if statistic.is_estimate and statistic.is_distribution:
-                    key_data["estimate %s"%name] = statistic.estimate_function(key_data[name])
+                    key_data["estimate {}".format(name)] = statistic.estimate_function(key_data[name])
 
             data[key] = key_data
 
