@@ -14,7 +14,11 @@ class DirichletMultinomial(StatisticalTest):
     def __init__(self, *args, **kwargs):
         super(DirichletMultinomial, self).__init__(*args, **kwargs)
 
-    def initialize_test(self, dataframe, groups=None, classes=None, groupcol='group', classcol='class', observationscol='observed', totalscol='total', alpha=None, samples=100000):
+    def initialize_test(self, dataframe, groups=None, classes=None,
+                        groupcol='group', classcol='class',
+                        observationscol='observed', totalscol='total',
+                        alpha=None, samples=100000):
+
         self.dataframe = dataframe
         self.groupcol = groupcol
         self.classcol = classcol
@@ -73,11 +77,22 @@ class DirichletMultinomial(StatisticalTest):
     def generate_text_description(self, summary_data):
 
         group_summary_header = [
-            'Group', 'Class', 'Estimated Proportion', '95% Credible Interval Lower', '95% Credible Interval Upper']
+            'Group',
+            'Class',
+            'Estimated Proportion',
+            '95% Credible Interval Lower',
+            '95% Credible Interval Upper'
+        ]
 
         tables = {}
         col_order = [
-            'group', 'class', 'estimate', '95_CI lower', '95_CI upper']
+            'group',
+            'class',
+            'estimate',
+            '95_CI lower',
+            '95_CI upper'
+        ]
+
         for group in self.groups:
             n = len(self.classes)
             estimates = pd.DataFrame(
@@ -102,7 +117,8 @@ class DirichletMultinomial(StatisticalTest):
                 frame, group_summary_header, tablefmt='pipe')
 
         summary_tables = "\n\n".join(
-            ["{}: \n\n{}".format(group, table) for (group, table) in tables.items()])
+            ["{}: \n\n{}".format(group, table)
+             for (group, table) in tables.items()])
 
         description = output_templates['groups estimate'].format(
             title=self.TYPE,
@@ -197,8 +213,10 @@ class WeightedDirichletMultinomial(DirichletMultinomial):
 
         return description
 
+
 def dirichlet_multinomial_proportions(dataframe, alpha, groups, classes, groupcol, classcol, observationscol, totalscol, samples, *args, **kwargs):
     return DirichletMultinomial(dataframe, groups=None, classes=None, groupcol='group', classcol='class', observationscol='observed', totalscol='total', alpha=None, samples=100000, *args, **kwargs)
+
 
 def weighted_dirichlet_comparison_test(dataframe, groups=None, classes=None, groupcol='group', classcol='class', observationscol='observed', totalscol='total', weights=None, weight_function=None, samples=100000, alpha=None):
     return WeightedDirichletMultinomial(dataframe=dataframe, groups=groups, classes=classes, groupcol=groupcol, classcol=classcol, observationscol=observationscol, totalscol=totalscol, weights=weights, weight_function=weight_function, samples=samples, alpha=alpha).summary()
