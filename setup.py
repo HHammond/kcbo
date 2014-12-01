@@ -15,7 +15,7 @@ def read(fname):
 
 setup(
     name="kcbo",
-    version="0.0.1",
+    version="0.0.2",
     author="Henry Hammond",
     author_email="henryhhammond92@gmail.com",
     description="Bayesian data analysis library",
@@ -37,7 +37,8 @@ setup(
         "scipy",
         "pymc",
         "pandas>=0.14",
-        "tabulate"
+        "tabulate",
+        "interval"
     ],
     package_data={
         "kcbo": [

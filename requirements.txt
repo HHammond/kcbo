@@ -4,3 +4,4 @@ scipy
 pymc
 pandas>=0.13
 tabulate
+interval
