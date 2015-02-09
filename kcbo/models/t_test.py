@@ -1,6 +1,5 @@
 from kcbo.model import ModelDecorator, MCMCModel
 from kcbo.statistic import NumericDistribution
-from kcbo.samplers import MCMCSampler, MAPSampler
 
 import numpy as np
 import pymc as pm

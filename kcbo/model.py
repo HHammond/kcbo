@@ -165,7 +165,7 @@ class Model(object):
             result_type = statistic.result_type
             try:
                 summary[name] = result_type(statistic, statistic(model_output))
-            except Exception as e:
+            except Exception:
 
                 error = ModelDefinitionError(
                     "Model has statistical functions which are incompatible "

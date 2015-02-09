@@ -36,9 +36,7 @@ setup(
         "numpy>=1.8",
         "scipy",
         "pymc",
-        "pandas>=0.14",
         "tabulate",
-        "interval"
     ],
     package_data={
         "kcbo": [
