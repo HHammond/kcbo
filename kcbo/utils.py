@@ -1,4 +1,10 @@
 import json
+import numbers
+
+
+def is_numeric(obj):
+    return isinstance(obj, numbers.Number)
+
 
 def multi_get(obj, keys, default=None):
     """An extension of an objects `.get` function.
@@ -6,8 +12,8 @@ def multi_get(obj, keys, default=None):
     Get values by a chain or heirarchy of keys.
     """
     for key in keys:
-        val = obj.get(key, None)
-        if val is not None:
+        val = obj.get(key, default)
+        if val is not default:
             return val
     return default
 
@@ -20,32 +26,53 @@ class Interval(object):
     either wholly open or wholly closed.
     """
 
-    def __init__(self, lower=float('-inf'), upper=float('inf'), closed=True):
+    def __init__(self, lower, upper, closed=False):
         self.lower = lower
         self.upper = upper
         self.closed = closed
 
+        if not is_numeric(lower) or not is_numeric(upper):
+            raise ValueError("Interval only accepts numeric bounds.")
+
+        if self.lower > self.upper:
+            raise ValueError("Lower bound is greater than upper bound.")
+
     def __contains__(self, v):
         """Check this interval for containment of number or Interval."""
-        if isinstance(v, (int, long, float, complex)):
+        if is_numeric(v) and not isinstance(v, complex):
             if self.closed:
                 return self.lower <= v <= self.upper
             else:
                 return self.lower < v < self.upper
 
         elif isinstance(v, Interval):
+
+            if v == self:
+                return True
+
+            if not self.closed and not v.closed:
+                if self.lower == v.lower and v.upper in self:
+                    return True
+                if self.upper == v.upper and v.lower in self:
+                    return True
+
             return v.lower in self and v.upper in self
 
         else:
             raise ValueError(
                 "Interval can only contain numerics or Intervals.")
 
+    def __eq__(self, other):
+        return (self.closed == other.closed
+                and self.lower == other.lower
+                and self.upper == other.upper)
+
     def to_json(self):
         return json.dumps({
             'lower': self.lower,
             'upper': self.upper,
             'closed': self.closed
-            })
+        })
 
     def __repr__(self):
         return str(self)
@@ -66,11 +93,6 @@ def combine_samplers(*samplers):
     return partials
 
 
-def is_numeric(obj):
-    attrs = ['__add__', '__sub__', '__mul__', '__div__', '__pow__']
-    return all(hasattr(obj, attr) for attr in attrs)
-
-
 def html_table_inner(data, floatfmt='0.5f'):
     """Create the inner data for an HTML table from input list.
     """
@@ -83,11 +105,12 @@ def html_table_inner(data, floatfmt='0.5f'):
     align_default = "style='text-align: left;'"
     for row in data:
         out.append("<tr>")
-        for i, cell in enumerate(row):
+        for cell in row:
             align = align_default
 
             if is_numeric(cell):
-                cell = float_format.format(cell)
+                if not isinstance(cell, numbers.Integral):
+                    cell = float_format.format(cell)
                 align = align_right
 
             out.append(cell_template.format(content=cell, format=align))

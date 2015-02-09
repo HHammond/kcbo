@@ -18,7 +18,7 @@ class Sampler(object):
         """Update the sampler's default arguments with any given."""
         self.defaults.update(kwargs)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, model, *args, **kwargs):
         """Apply model to produce output.
 
         This method must be subclassed so that a sampler may be called on a

@@ -9,7 +9,6 @@ from kcbo.utils import combine_samplers, multi_get
 
 @ModelDecorator
 class BetaBinomialDifference(MonteCarloModel):
-    # application_method = MonteCarloSampler
     defaults = {'samples': 100000}
 
     @classmethod

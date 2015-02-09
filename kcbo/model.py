@@ -1,5 +1,6 @@
 import sys
 import inspect
+import types
 
 from . import samplers
 from .result import ResultSet
@@ -62,7 +63,6 @@ class Model(object):
 
     # Required model metadata
     application_method = None
-    analysis = []
     defaults = {}
 
     def __new__(cls, *model_positional_args, **kwargs):
@@ -75,7 +75,7 @@ class Model(object):
         return cls._ResultSet(model=cls, raw=model_output, results=results)
 
     @classmethod
-    def model(*args, **kwargs):
+    def model(cls):
         """The model declaration function.
 
         The model method is the method that statistics should be generated
@@ -112,6 +112,13 @@ class Model(object):
         Instead the model should use keyword arguments for this behaviour.
         """
         argspec = inspect.getargspec(cls.model)
+
+        if (not isinstance(cls.model, types.FunctionType)
+                and cls.model.__func__ == Model.model.__func__):
+            raise ModelDefinitionError(
+                "This model does not implement the required `Model.model` "
+                "method.")
+
         if argspec.varargs:
             raise ModelDefinitionError("Model function cannot take varargs.")
 
@@ -139,10 +146,7 @@ class Model(object):
         Ensure that the application method chosen for this method is valid and
         return method.
         """
-        if 'method' not in settings:
-            method = cls.application_method
-        else:
-            method = settings['method']
+        method = settings.get('method', cls.application_method)
 
         if method is None:
             raise ValueError(
@@ -161,7 +165,7 @@ class Model(object):
             result_type = statistic.result_type
             try:
                 summary[name] = result_type(statistic, statistic(model_output))
-            except Exception:
+            except Exception as e:
 
                 error = ModelDefinitionError(
                     "Model has statistical functions which are incompatible "
@@ -170,13 +174,14 @@ class Model(object):
                     "need to try subclassing this model to properly handle "
                     "this application method. ")
 
+                # Raise error and stacktrace
                 raise error, None, sys.exc_info()[2]
 
         return summary
 
     @classmethod
     def get_statistics(cls):
-        """Return list all statistical functions registered with model.
+        """Return list of all statistical functions registered with model.
 
         Return list of all methods from this class which have the @Statistic
         decorator.
@@ -206,6 +211,7 @@ class Model(object):
             raise TypeError(
                 "This model's application method is not a valid sampler. All "
                 "samplers must be subclasses of kcbo.samplers.Sampler.")
+
         return sampler(model, **settings)
 
 
