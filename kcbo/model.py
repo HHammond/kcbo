@@ -25,6 +25,7 @@ class _ModelMetaClass(type):
 
 
 def ModelDecorator(model):
+
     """Update function docs for a Model.
 
     Take docstring from `Model.model` and apply it to `Model` so that the
